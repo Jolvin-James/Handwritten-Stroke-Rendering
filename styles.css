@@ -1,0 +1,100 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.container {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+#toolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+
+    width: auto;
+    padding: 10px 20px;
+    background-color: rgba(32, 32, 32, 0.9);
+    border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+
+}
+
+#toolbar h1 {
+    font-size: 1.2rem;
+    margin: 0;
+    background: linear-gradient(to right, #91EAE4, #86A8E7, #7F7FD5);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#toolbar label {
+    font-size: 14px;
+    color: #e0e0e0;
+    margin: 0;
+    cursor: default;
+}
+
+#toolbar input {
+    margin: 0;
+    border: none;
+    border-radius: 4px;
+}
+
+input[type="color"] {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+input[type="number"] {
+    width: 50px;
+    padding: 5px;
+    text-align: center;
+}
+
+#toolbar button {
+    background-color: #1565c0;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+#toolbar button:hover {
+    background-color: #0d47a1;
+}
+
+.drawing-board {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
