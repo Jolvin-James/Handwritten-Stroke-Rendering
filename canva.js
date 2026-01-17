@@ -30,6 +30,10 @@ toolbar.addEventListener('change', e => {
 
 });
 
+// Array to store all strokes
+const strokes = [];
+let currentStroke = [];
+
 const draw = (e) => {
     if (!isPainting) {
         return;
@@ -38,20 +42,49 @@ const draw = (e) => {
     ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
 
+    // For visual drawing, we keep using the existing logic
+    // but we might want to use e.pressure in the future
     ctx.lineTo(e.clientX - canvasOffsetX, e.clientY);
     ctx.stroke();
+
+    // Capture data
+    const point = {
+        x: e.clientX - canvasOffsetX,
+        y: e.clientY - canvasOffsetY,
+        time: Date.now(),
+        pressure: e.pressure
+    };
+    currentStroke.push(point);
 }
 
-canvas.addEventListener('mousedown', (e) => {
+canvas.addEventListener('pointerdown', (e) => {
     isPainting = true;
     startX = e.clientX;
     startY = e.clientY;
+
+    // Start a new stroke
+    currentStroke = [];
+    // Capture the starting point
+    const point = {
+        x: e.clientX - canvasOffsetX,
+        y: e.clientY - canvasOffsetY,
+        time: Date.now(),
+        pressure: e.pressure
+    };
+    currentStroke.push(point);
+    // Ensure the visual path starts correctly if needed (optional improvement, but sticking to flow)
 });
 
-canvas.addEventListener('mouseup', e => {
+canvas.addEventListener('pointerup', e => {
     isPainting = false;
     ctx.stroke();
     ctx.beginPath();
+
+    // Save the completed stroke
+    if (currentStroke.length > 0) {
+        strokes.push(currentStroke);
+        console.log('Stroke captured:', currentStroke);
+    }
 });
 
-canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('pointermove', draw);
