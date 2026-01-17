@@ -21,24 +21,40 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
 
 *   **Q: The user draws a continuous line. How is this achieved code-wise?**
     *   *Reference*: `draw` function in `canva.js`.
-    *   *Answer*: It relies on `mousemove` events firing rapidly.
+    *   *Answer*: It relies on `pointermove` events firing rapidly.
         1.  **`beginPath()`**: Starts a new path (prevents connecting to previous lines).
         2.  **`lineWidth` & `lineCap`**: Sets style. `round` makes the line edges smooth.
-        3.  **`lineTo(x, y)`**: Defines a sub-path to the new mouse coordinates.
+        3.  **`lineTo(x, y)`**: Defines a sub-path to the new mouse/pointer coordinates.
         4.  **`stroke()`**: Actually draws the line defined by `lineTo`.
-        *Note*: Your code separates `beginPath` in `mouseup`, which is an interesting choice. Using `beginPath` at `mousedown` is more common to "break" the line from previous strokes.
+        *Note*: Your code separates `beginPath` in `pointerup`, which is an interesting choice. Using `beginPath` at `pointerdown` is more common to "break" the line from previous strokes.
 
 ### 2. JavaScript Event Handling
-**Context**: You use `mousedown`, `mouseup`, `mousemove`.
+**Context**: You use `pointerdown`, `pointerup`, `pointermove`.
 
 *   **Q: Why do we need `e.clientX - canvasOffsetX`?**
-    *   *Reference*: Line 41 in `canva.js`.
-    *   *Answer*: `e.clientX` gives the mouse position relative to the *browser viewport*. The Canvas starts at a specific position on the page (`offsetLeft`). To get the X coordinate *inside* the canvas, we must subtract the canvas's starting position from the mouse's position.
+    *   *Reference*: Inside the `draw` function and event listeners in `canva.js`.
+    *   *Answer*: `e.clientX` gives the mouse/pointer position relative to the *browser viewport*. The Canvas starts at a specific position on the page (`offsetLeft`). To get the X coordinate *inside* the canvas, we must subtract the canvas's starting position from the pointer's position.
 
 *   **Q: What is the purpose of the `isPainting` variable?**
-    *   *Answer*: It acts as a "flag" or state variable. The `mousemove` event fires whenever the mouse moves over the canvas, even if the user isn't clicking. `isPainting` ensures we only draw when the mouse button is actually held down (set to true on `mousedown`, false on `mouseup`).
+    *   *Answer*: It acts as a "flag" or state variable. The `pointermove` event fires whenever the pointer moves over the canvas, even if the user isn't clicking. `isPainting` ensures we only draw when the pointer is actually held down (set to true on `pointerdown`, false on `pointerup`).
 
-### 3. CSS & Layout
+*   **Q: Why use Pointer Events (`pointerdown`, etc.) instead of Mouse Events?**
+    *   *Answer*: Pointer Events are a unified API handling mouse, touch, and pen inputs.
+        *   **Pressure Sensitivity**: They provide `e.pressure`, which is crucial for handwriting apps to vary line thickness or opacity based on how hard the user presses (especially with a stylus).
+        *   **Cross-Device**: One event listener works for both desktop mice and mobile touchscreens.
+
+### 3. Data Capture (The Backbone of Recognition)
+**Context**: In `canva.js`, you are now pushing data to a `strokes` array.
+
+*   **Q: How do you structure the data for potential AI training?**
+    *   *Reference*: `point` object in `canva.js`.
+    *   *Answer*: Instead of just pixels, we store the *trajectory* of the handwriting.
+        *   `x`, `y`: Coordinates (spatial).
+        *   `time`: Timestamp (temporal). This is critical for recognizing *order* (e.g., drawing a '5' vs 'S' might look similar but have different stroke orders).
+        *   `pressure`: Stylus pressure (optional but helpful features).
+    *   *Strokes Array*: We have a `strokes` array (array of arrays). Each inner array represents one continuous line (pen down to pen up).
+
+### 4. CSS & Layout
 **Context**: `styles.css` uses flexbox and positioning.
 
 *   **Q: How is the toolbar positioned over the canvas?**
@@ -81,5 +97,6 @@ Since the project is called "Handwritten-Stroke-Recognition", an interviewer wil
 *   **Q: What was the most challenging part of this project?**
     *   *Suggested Answer*: "Handling the coordinate offsets was tricky because the mouse position doesn't automatically map to the canvas drawing surface, especially when the window resizes."
 *   **Q: How would you improve this app?**
-    *   *Idea 1*: Add "Touch" support for mobile devices (`touchstart`, `touchmove`).
-    *   *Idea 2*: Optimize performance using `requestAnimationFrame` instead of raw mouse events.
+    *   *Idea 1*: **Curve Smoothing**: The raw `pointermove` data can be jagged. Implementing **B-Splines** or **Bezier Curves** would make the handwriting look smoother and more natural.
+    *   *Idea 2*: **Backend Integration**: Send the captured `strokes` JSON data to a Python/Flask server where a machine learning model runs.
+    *   *Idea 3*: optimize performance using `requestAnimationFrame` instead of raw pointer events for the visual rendering.
