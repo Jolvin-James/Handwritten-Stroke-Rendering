@@ -1,6 +1,6 @@
-const canvas = document.getElementById('drawing-board');
-const toolbar = document.getElementById('toolbar');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("drawing-board");
+const toolbar = document.getElementById("toolbar");
+const ctx = canvas.getContext("2d");
 
 const canvasOffsetX = canvas.offsetLeft;
 const canvasOffsetY = canvas.offsetTop;
@@ -10,81 +10,139 @@ canvas.height = window.innerHeight - canvasOffsetY;
 
 let isPainting = false;
 let lineWidth = 5;
-let startX;
-let startY;
+let exportCount = 1;
 
-toolbar.addEventListener('click', e => {
-    if (e.target.id === 'clear') {
+// Stroke storage
+const strokes = [];
+let currentStroke = [];
+let strokeStartTime = 0;
+let lastPoint = null;
+
+// Toolbar actions
+toolbar.addEventListener("click", (e) => {
+    if (e.target.id === "clear") {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        strokes.length = 0;
+    }
+
+    if (e.target.id === "export") {
+        const data = {
+            canvas: {
+                width: canvas.width,
+                height: canvas.height
+            },
+            strokes: strokes
+        };
+
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const paddedIndex = String(exportCount).padStart(3, "0");
+        const filename = `strokes_${paddedIndex}.json`;
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+
+        URL.revokeObjectURL(url);
+
+        exportCount++;
     }
 });
 
-toolbar.addEventListener('change', e => {
-    if (e.target.id === 'stroke') {
+toolbar.addEventListener("change", (e) => {
+    if (e.target.id === "stroke") {
         ctx.strokeStyle = e.target.value;
     }
 
-    if (e.target.id === 'lineWidth') {
+    if (e.target.id === "lineWidth") {
         lineWidth = e.target.value;
     }
-
 });
 
-// Array to store all strokes
-const strokes = [];
-let currentStroke = [];
+// Pointer down
+canvas.addEventListener("pointerdown", (e) => {
+    isPainting = true;
+    ctx.beginPath();
 
-const draw = (e) => {
-    if (!isPainting) {
-        return;
-    }
+    strokeStartTime = performance.now();
+    currentStroke = [];
+    lastPoint = null;
+
+    const x = e.clientX - canvasOffsetX;
+    const y = e.clientY - canvasOffsetY;
+
+    ctx.moveTo(x, y);
+
+    const point = {
+        x: x / canvas.width,
+        y: y / canvas.height,
+        t: 0,
+        p: e.pressure || 0.5
+    };
+
+    currentStroke.push(point);
+    lastPoint = point;
+});
+
+// Pointer move
+canvas.addEventListener("pointermove", (e) => {
+    if (!isPainting) return;
+
+    const x = e.clientX - canvasOffsetX;
+    const y = e.clientY - canvasOffsetY;
 
     ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-
-    // For visual drawing, we keep using the existing logic
-    // but we might want to use e.pressure in the future
-    ctx.lineTo(e.clientX - canvasOffsetX, e.clientY);
+    ctx.lineCap = "round";
+    ctx.lineTo(x, y);
     ctx.stroke();
 
-    // Capture data
-    const point = {
-        x: e.clientX - canvasOffsetX,
-        y: e.clientY - canvasOffsetY,
-        time: Date.now(),
-        pressure: e.pressure
-    };
-    currentStroke.push(point);
-}
+    const nx = x / canvas.width;
+    const ny = y / canvas.height;
 
-canvas.addEventListener('pointerdown', (e) => {
-    isPainting = true;
-    startX = e.clientX;
-    startY = e.clientY;
+    const now = performance.now();
+    const t = now - strokeStartTime;
 
-    // Start a new stroke
-    currentStroke = [];
-    // Capture the starting point
+    if (lastPoint) {
+        const dx = nx - lastPoint.x;
+        const dy = ny - lastPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 0.001) return;
+    }
+
     const point = {
-        x: e.clientX - canvasOffsetX,
-        y: e.clientY - canvasOffsetY,
-        time: Date.now(),
-        pressure: e.pressure
+        x: nx,
+        y: ny,
+        t: t,
+        p: e.pressure || 0.5
     };
+
     currentStroke.push(point);
-    // Ensure the visual path starts correctly if needed (optional improvement, but sticking to flow)
+    lastPoint = point;
 });
 
-canvas.addEventListener('pointerup', e => {
+// Pointer up
+canvas.addEventListener("pointerup", () => {
     isPainting = false;
     ctx.stroke();
     ctx.beginPath();
 
-    // Save the completed stroke
-    if (currentStroke.length > 0) {
-        strokes.push(currentStroke);
-        console.log('Stroke captured:', currentStroke);
+    if (currentStroke.length > 1) {
+        strokes.push({
+            stroke_id: strokes.length + 1,
+            points: currentStroke
+        });
     }
+
+    currentStroke = [];
+    lastPoint = null;
 });
 
-canvas.addEventListener('pointermove', draw);
+// Pointer leave safety
+canvas.addEventListener("pointerleave", () => {
+    isPainting = false;
+    ctx.beginPath();
+});
