@@ -26,10 +26,10 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
         2.  **`lineWidth` & `lineCap`**: Sets style. `round` makes the line edges smooth.
         3.  **`lineTo(x, y)`**: Defines a sub-path to the new mouse/pointer coordinates.
         4.  **`stroke()`**: Actually draws the line defined by `lineTo`.
-        *Note*: Your code separates `beginPath` in `pointerup`, which is an interesting choice. Using `beginPath` at `pointerdown` is more common to "break" the line from previous strokes.
+        *Note*: Your code now correctly calls `beginPath` on `pointerdown` to ensure every new stroke is independent.
 
 ### 2. JavaScript Event Handling
-**Context**: You use `pointerdown`, `pointerup`, `pointermove`.
+**Context**: You use `pointerdown`, `pointerup`, `pointermove`, and `pointerleave`.
 
 *   **Q: Why do we need `e.clientX - canvasOffsetX`?**
     *   *Reference*: Inside the `draw` function and event listeners in `canva.js`.
@@ -48,11 +48,11 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
 
 *   **Q: How do you structure the data for potential AI training?**
     *   *Reference*: `point` object in `canva.js`.
-    *   *Answer*: Instead of just pixels, we store the *trajectory* of the handwriting.
-        *   `x`, `y`: Coordinates (spatial).
-        *   `time`: Timestamp (temporal). This is critical for recognizing *order* (e.g., drawing a '5' vs 'S' might look similar but have different stroke orders).
-        *   `pressure`: Stylus pressure (optional but helpful features).
-    *   *Strokes Array*: We have a `strokes` array (array of arrays). Each inner array represents one continuous line (pen down to pen up).
+    *   *Answer*: We store the *trajectory* as a series of normalized 4D points `(x, y, t, p)`.
+        *   **Normalized Coordinates (`x`, `y`)**: We store values between 0.0 and 1.0 (e.g., `x / canvas.width`). This makes the data resolution-independent; the AI doesn't care if you drew on a 500px or 1000px wide screen.
+        *   **Relative Time (`t`)**: We store the time in milliseconds *relative to the start of the specific stroke* (`now - strokeStartTime`). This captures the speed and rhythm of writing without using large absolute timestamps.
+        *   **Pressure (`p`)**: We capture stylus pressure (defaulting to 0.5 if unavailable). This is useful for distinguishing intended strokes from accidental touches.
+    *   *Strokes Array*: The data is structured as an array of stroke objects: `[{ stroke_id: 1, points: [...] }, ...]`.
 
 ### 4. CSS & Layout
 **Context**: `styles.css` uses flexbox and positioning.
@@ -72,10 +72,12 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
 Since the project is called "Handwritten-Stroke-Recognition", an interviewer will ask about the logic that doesn't exist yet.
 
 ### 1. Data Extraction
-*   **Q: How do you get the image data out of the canvas to send it to an AI?**
-    *   *Concept*: `canvas.toDataURL()` or `ctx.getImageData()`.
-    *   *Answer*: `canvas.toDataURL('image/png')` converts the drawing into a Base64 string (a standard string representation of an image). You can send this string to a backend server.
-    *   *Alternative*: `ctx.getImageData()` gives you raw pixel array [R, G, B, A, R, G, B, A...]. This is useful if you run the model directly in the browser.
+*   **Q: How do you extract data for the AI? (Image vs. Sequence)**
+    *   *Current Approach (Sequence)*: You implemented a **JSON Export** feature.
+        *   The app serializes the `strokes` array (temporal data) into a JSON string.
+        *   It creates a `Blob` and a temporary `<a>` tag to trigger a file download (`strokes_001.json`).
+        *   **Why?** This "online" data (vectors + time) allows for much higher accuracy than static images because you know exactly how the character was written (stroke order, direction, speed).
+    *   *Alternative (Image)*: `canvas.toDataURL()` could still be used if you wanted to send a static snapshot (bitmap) to a standard CNN, but you'd lose the temporal information.
 
 ### 2. Preprocessing (Critical for AI)
 *   **Q: Users draw lines of different sizes in random places. How do you handle this?**
