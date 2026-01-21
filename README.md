@@ -27,7 +27,7 @@ A lightweight, web-based drawing application capable of capturing detailed strok
 ## Setup & Usage
 
 1.  Clone the repository or download the files.
-2.  Open `index.html` in any modern web browser.
+2.  Open `frontend/index.html` in any modern web browser.
 3.  Start drawing!
     -   Use a stylus on a compatible device to see pressure sensitivity in action.
     -   Open the browser's Developer Console (`F12`) to see logged stroke data arrays when you finish a stroke.
@@ -48,3 +48,29 @@ The application captures data in the following format:
   ]
 ]
 ```
+
+## Machine Learning
+
+The `ml/` directory contains Python scripts for processing the captured stroke data.
+
+### Dataset Loader (`ml/dataset.py`)
+The `StrokeDataset` class loads JSON stroke files and processes them into tensor sequences for training.
+
+**Computed Features (5 dimensions):**
+1.  **x_centered**: Bounding-box normalized X coordinate (centered).
+2.  **y_centered**: Bounding-box normalized Y coordinate (centered).
+3.  **dt_norm**: Normalized time delta (time since previous point).
+4.  **p_norm**: Normalized pressure.
+5.  **speed**: Calculated velocity magnitude (derived from dx/dy and dt).
+
+### Usage
+
+1.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  Run the test script to verify data loading:
+    ```bash
+    cd ml
+    python test_dataset.py
+    ```

@@ -8,7 +8,7 @@ We also include a section on **Machine Learning & Backend Integration**, which i
 
 ## Part 1: The Existing Code (Frontend Engineering)
 
-These questions directly relate to the `index.html`, `styles.css`, and `canva.js` files you have written.
+These questions directly relate to the `frontend/index.html`, `frontend/styles.css`, and `frontend/canvas.js` files you have written.
 
 ### 1. HTML5 Canvas API
 **Context**: You rely entirely on the `<canvas>` element for this project.
@@ -20,7 +20,7 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
     *   *Answer*: This method returns a "drawing context" on the canvas. It provides the methods and properties needed to draw text, lines, boxes, etc. (e.g., `ctx.stroke()`, `ctx.lineWidth`).
 
 *   **Q: The user draws a continuous line. How is this achieved code-wise?**
-    *   *Reference*: `draw` function in `canva.js`.
+    *   *Reference*: `draw` function in `frontend/canvas.js`.
     *   *Answer*: It relies on `pointermove` events firing rapidly.
         1.  **`beginPath()`**: Starts a new path (prevents connecting to previous lines).
         2.  **`lineWidth` & `lineCap`**: Sets style. `round` makes the line edges smooth.
@@ -32,7 +32,7 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
 **Context**: You use `pointerdown`, `pointerup`, `pointermove`, and `pointerleave`.
 
 *   **Q: Why do we need `e.clientX - canvasOffsetX`?**
-    *   *Reference*: Inside the `draw` function and event listeners in `canva.js`.
+    *   *Reference*: Inside the `draw` function and event listeners in `frontend/canvas.js`.
     *   *Answer*: `e.clientX` gives the mouse/pointer position relative to the *browser viewport*. The Canvas starts at a specific position on the page (`offsetLeft`). To get the X coordinate *inside* the canvas, we must subtract the canvas's starting position from the pointer's position.
 
 *   **Q: What is the purpose of the `isPainting` variable?**
@@ -44,10 +44,10 @@ These questions directly relate to the `index.html`, `styles.css`, and `canva.js
         *   **Cross-Device**: One event listener works for both desktop mice and mobile touchscreens.
 
 ### 3. Data Capture (The Backbone of Recognition)
-**Context**: In `canva.js`, you are now pushing data to a `strokes` array.
+**Context**: In `frontend/canvas.js`, you are now pushing data to a `strokes` array.
 
 *   **Q: How do you structure the data for potential AI training?**
-    *   *Reference*: `point` object in `canva.js`.
+    *   *Reference*: `point` object in `frontend/canvas.js`.
     *   *Answer*: We store the *trajectory* as a series of normalized 4D points `(x, y, t, p)`.
         *   **Normalized Coordinates (`x`, `y`)**: We store values between 0.0 and 1.0 (e.g., `x / canvas.width`). This makes the data resolution-independent; the AI doesn't care if you drew on a 500px or 1000px wide screen.
         *   **Relative Time (`t`)**: We store the time in milliseconds *relative to the start of the specific stroke* (`now - strokeStartTime`). This captures the speed and rhythm of writing without using large absolute timestamps.
