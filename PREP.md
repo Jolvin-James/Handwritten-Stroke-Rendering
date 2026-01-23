@@ -67,38 +67,55 @@ These questions directly relate to the `frontend/index.html`, `frontend/styles.c
 
 ---
 
-## Part 2: System Design (The "Recognition" Part)
+## Part 2: Machine Learning & Feature Engineering (Implemented)
 
-Since the project is called "Handwritten-Stroke-Recognition", an interviewer will ask about the logic that doesn't exist yet.
+These questions relate to `ml/dataset.py` and the data pipeline you have built.
 
-### 1. Data Extraction
-*   **Q: How do you extract data for the AI? (Image vs. Sequence)**
-    *   *Current Approach (Sequence)*: You implemented a **JSON Export** feature.
-        *   The app serializes the `strokes` array (temporal data) into a JSON string.
-        *   It creates a `Blob` and a temporary `<a>` tag to trigger a file download (`strokes_001.json`).
-        *   **Why?** This "online" data (vectors + time) allows for much higher accuracy than static images because you know exactly how the character was written (stroke order, direction, speed).
-    *   *Alternative (Image)*: `canvas.toDataURL()` could still be used if you wanted to send a static snapshot (bitmap) to a standard CNN, but you'd lose the temporal information.
+### 1. Feature Engineering
+**Context**: You don't just feed raw pixels to the model; you process the stroke points first.
 
-### 2. Preprocessing (Critical for AI)
-*   **Q: Users draw lines of different sizes in random places. How do you handle this?**
-    *   *Concept*: **Normalization**.
-    *   *Answer*: Before recognizing the stroke, you usually need to:
-        1.  **Resize**: Scale the image to a fixed size (e.g., 28x28 pixels for MNIST models).
-        2.  **Grayscale**: Convert colors to simple black & white values (0-255).
-        3.  **Center**: Move the bounding box of the drawing to the center of the image.
+*   **Q: What features do you extract from each point?**
+    *   *Reference*: `_process_stroke` method in `ml/dataset.py`.
+    *   *Answer*: We extract 5 features per point: `[x, y, dt_norm, p_norm, speed]`.
+        1.  **Centered Coordinates (`x`, `y`)**: Normalized to be resolution-independent and centered at (0,0).
+        2.  **Delta Time (`dt`)**: Time difference between points, normalized.
+        3.  **Pressure (`p`)**: Standardized pressure values.
+        4.  **Speed**: Calculated from velocity (`sqrt(dx^2 + dy^2)`), helping the model learn stroke dynamics.
 
-### 3. Model Architecture
-*   **Q: What algorithm would you use to recognize the digit/stroke?**
-    *   *Option A (Simple)*: **K-Nearest Neighbors (KNN)**. Compare the pixel similarity of the drawing to thousands of known examples.
-    *   *Option B (Standard)*: **Convolutional Neural Network (CNN)**. A deep learning model (like those trained on the MNIST dataset) that is excellent at image recognition.
+*   **Q: How do you handle strokes of different lengths?**
+    *   *Reference*: `_resample` method in `ml/dataset.py`.
+    *   *Answer*: We use **Linear Interpolation** to resample every stroke to a fixed sequence length (`max_seq_len=128`).
+        *   If a stroke has 50 points, we interpolate it to 128.
+        *   If it has 200 points, we downsample it to 128.
+        *   *Why?* Neural networks (like LSTMs or Transformers) often work best with or require fixed-size input tensors for batch processing.
+
+### 2. Normalization Strategy
+**Context**: Handwriting can be large, small, or offset.
+
+*   **Q: How do you normalize the stroke coordinates?**
+    *   *Answer*: We use **Aspect Ratio Preserving Normalization**.
+        1.  Calculate the bounding box (`min_x`, `max_x`, `min_y`, `max_y`).
+        2.  Find the largest dimension: `scale = max(width, height)`.
+        3.  Scale both X and Y by this same `scale` factor.
+        *   *Why?* If we scaled X and Y independently (part of standard MinMax scaling), a circle would become an oval. We must preserve the shape.
+
+### 3. Data Augmentation (Denoising)
+**Context**: The goal is "Smoothing", so you need a way to train the model to remove noise.
+
+*   **Q: How do you generate training data?**
+    *   *Reference*: `StrokeDataset.__getitem__` and `_add_synthetic_noise`.
+    *   *Answer*: We generate synthetic training pairs on-the-fly.
+        *   **Target (Clean)**: The original stroke drawn by the user (assumed to be relatively smooth/intended path).
+        *   **Input (Noisy)**: We add Gaussian noise to the coordinate channels of the Clean stroke.
+        *   **Task**: The model learns the mapping $f(Noisy) \rightarrow Clean$.
 
 ---
 
 ## Part 3: Soft Skills / Behavioral
 
 *   **Q: What was the most challenging part of this project?**
-    *   *Suggested Answer*: "Handling the coordinate offsets was tricky because the mouse position doesn't automatically map to the canvas drawing surface, especially when the window resizes."
+    *   *Suggested Answer*: "Ensuring the data pipeline was robust. For example, handling strokes with different point counts and correctly normalizing them without distorting the aspect ratio."
 *   **Q: How would you improve this app?**
-    *   *Idea 1*: **Curve Smoothing**: The raw `pointermove` data can be jagged. Implementing **B-Splines** or **Bezier Curves** would make the handwriting look smoother and more natural.
-    *   *Idea 2*: **Backend Integration**: Send the captured `strokes` JSON data to a Python/Flask server where a machine learning model runs.
-    *   *Idea 3*: optimize performance using `requestAnimationFrame` instead of raw pointer events for the visual rendering.
+    *   *Idea 1*: **Train the Model**: Now that the dataset pipeline is ready, I would design a Transformer or LSTM-based Autoencoder to actually interpret the data.
+    *   *Idea 2*: **Real-time Inference**: Connect the Python backend to the frontend via WebSockets or a REST API to smooth strokes in real-time as the user draws.
+    *   *Idea 3*: **Multi-stroke support**: Currently, the ML pipeline processes individual strokes. Extending it to handle full characters (multiple strokes) would be the next logic step.
