@@ -21,6 +21,7 @@ This project focuses on collecting and processing handwritten stroke data for ma
   - Velocity and pressure normalization.
   - Derived features: Delta time (`dt`) and Speed.
 - **Synthetic Noise**: Built-in augmentation to add Gaussian noise to strokes, enabling training of denoising models.
+- **Stroke Smoothing Model**: An LSTM-based regression model (`ml/model.py`) designed to smooth and denoise handwritten strokes.
 
 ## Project Structure
 
@@ -32,6 +33,7 @@ This project focuses on collecting and processing handwritten stroke data for ma
 │   └── canvas.js       # Drawing logic & data capture
 ├── ml/                 # Machine Learning pipeline
 │   ├── dataset.py      # PyTorch Dataset implementation
+│   ├── model.py        # LSTM Model architecture
 │   └── test_dataset.py # Verification script
 ├── data/               # Directory for storing stroke JSON files
 └── requirements.txt    # Python dependencies
@@ -71,6 +73,24 @@ dataset = StrokeDataset(data_dir="data", max_seq_len=128)
 # Get a sample (Returns: noisy_input, clean_target)
 input_stroke, target_stroke = dataset[0]
 print(input_stroke.shape)  # Expected: (128, 5) -> [x, y, dt, p, v]
+```
+
+### 4. Using the Model
+You can instantiate the LSTM model for training or inference:
+
+```python
+from ml.model import StrokeLSTM
+import torch
+
+# Initialize model
+model = StrokeLSTM(input_size=5, hidden_size=128, output_size=2)
+
+# Create a dummy batch (batch_size=1, seq_len=128, features=5)
+dummy_input = torch.randn(1, 128, 5)
+
+# Forward pass
+output = model(dummy_input)
+print(output.shape) # Expected: (1, 128, 2) -> [x, y]
 ```
 
 ## Data Format

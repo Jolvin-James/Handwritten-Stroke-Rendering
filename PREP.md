@@ -71,8 +71,12 @@ These questions directly relate to the `frontend/index.html`, `frontend/styles.c
 
 These questions relate to `ml/dataset.py` and the data pipeline you have built.
 
-### 1. Feature Engineering
-**Context**: You don't just feed raw pixels to the model; you process the stroke points first.
+### 1. Data Loading & Feature Engineering
+**Context**: The pipeline involves loading raw JSON data and transforming it into tensor-ready features.
+
+*   **Q: How is the data loaded?**
+    *   *Reference*: `_load_data` in `ml/dataset.py`.
+    *   *Answer*: The loader iterates through all JSON files in the directory and extracts **every** valid stroke (not just the first one). These are flattened into a single training list.
 
 *   **Q: What features do you extract from each point?**
     *   *Reference*: `_process_stroke` method in `ml/dataset.py`.
@@ -108,6 +112,17 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
         *   **Target (Clean)**: The original stroke drawn by the user (assumed to be relatively smooth/intended path).
         *   **Input (Noisy)**: We add Gaussian noise to the coordinate channels of the Clean stroke.
         *   **Task**: The model learns the mapping $f(Noisy) \rightarrow Clean$.
+
+### 4. Model Architecture
+**Context**: You use a Recurrent Neural Network (RNN) to handle the sequential nature of handwriting.
+
+*   **Q: Describe the model architecture.**
+    *   *Reference*: `StrokeLSTM` in `ml/model.py`.
+    *   *Answer*: We use an **LSTM (Long Short-Term Memory)** network.
+        *   **Input**: `(batch_size, seq_len, 5)` — The 5 input features are `[x, y, dt, p, speed]`.
+        *   **Hidden Layers**: Two stacked LSTM layers (`num_layers=2`) with `hidden_size=128`. This allows the model to capture complex temporal dependencies.
+        *   **Dropout**: We apply `dropout=0.2` between layers to prevent overfitting.
+        *   **Output**: A fully connected linear layer maps the final hidden state to 2 coordinates `(x, y)`.
 
 ---
 
