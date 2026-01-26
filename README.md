@@ -34,6 +34,7 @@ This project focuses on collecting and processing handwritten stroke data for ma
 ├── ml/                 # Machine Learning pipeline
 │   ├── dataset.py      # PyTorch Dataset implementation
 │   ├── model.py        # LSTM Model architecture
+│   ├── train.py        # Training script
 │   └── test_dataset.py # Verification script
 ├── data/               # Directory for storing stroke JSON files
 └── requirements.txt    # Python dependencies
@@ -92,6 +93,23 @@ dummy_input = torch.randn(1, 128, 5)
 output = model(dummy_input)
 print(output.shape) # Expected: (1, 128, 2) -> [x, y]
 ```
+
+### 5. Training the Model
+To train the LSTM model on your collected data:
+
+1. Ensure your JSON data files are in `data/raw/` (or configure `DATA_DIR` in `ml/train.py`).
+2. Run the training module:
+
+```bash
+python -m ml.train
+```
+
+**Training Details:**
+- **Epochs**: 50
+- **Batch Size**: 16
+- **Device**: CUDA (if available) else CPU
+- **Output**: The best model weights are saved to `stroke_lstm.pth`.
+
 
 ## Data Format
 Exported JSON files contain a list of strokes, where each stroke is a list of points:

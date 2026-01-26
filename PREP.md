@@ -1,8 +1,8 @@
 # Interview Preparation Guide: Handwritten Stroke Recognition
 
-This guide covers potential interview questions and concepts based on your current codebase. Since your project is currently a **Frontend Drawing Application**, questions will focus heavily on **HTML5 Canvas**, **JavaScript Events**, and **Web Development Basics**.
+This guide covers potential interview questions and concepts based on your current codebase. Since your project captures high-fidelity stroke data and trains a **Machine Learning Model** to smooth it, questions will focus on **HTML5 Canvas**, **Data Feature Engineering**, and **LSTM/RNN Training**.
 
-We also include a section on **Machine Learning & Backend Integration**, which is the logical next step for a "Recognition" app.
+This guide is updated to reflect the full stack implementation, including the backend training pipeline.
 
 ---
 
@@ -123,6 +123,34 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
         *   **Hidden Layers**: Two stacked LSTM layers (`num_layers=2`) with `hidden_size=128`. This allows the model to capture complex temporal dependencies.
         *   **Dropout**: We apply `dropout=0.2` between layers to prevent overfitting.
         *   **Output**: A fully connected linear layer maps the final hidden state to 2 coordinates `(x, y)`.
+
+### 5. Training Pipeline
+**Context**: You have a complete training script `ml/train.py` that optimizes the model.
+
+*   **Q: What loss function do you use and why?**
+    *   *Reference*: `criterion = nn.MSELoss()` in `ml/train.py`.
+    *   *Answer*: We use **Mean Squared Error (MSE)**.
+        *   Since this is a **regression** problem (predicting continuous x, y coordinates), MSE is the standard choice. It penalizes large deviations from the "Clean" stroke path more severely.
+
+*   **Q: Which optimizer did you choose?**
+    *   *Reference*: `torch.optim.Adam` in `ml/train.py`.
+    *   *Answer*: **Adam** (Adaptive Moment Estimation).
+        *   It typically converges faster than standard SGD because it adapts the learning rate for each parameter.
+        *   We use a learning rate of `1e-3`.
+
+*   **Q: What are your hyperparameters?**
+    *   *Answer*:
+        *   **Batch Size**: 16 (Small enough for stability, large enough for some parallelization).
+        *   **Epochs**: 50 (Sufficient for convergence on this dataset size).
+        *   **Sequence Length**: 128 (Fixed length for all strokes via interpolation).
+
+*   **Q: Describe one training step.**
+    *   *Answer*:
+        1.  **Forward Pass**: Pass noisy stroke batch through the LSTM.
+        2.  **Calculate Loss**: Compare predicted coordinates vs. clean target coordinates.
+        3.  **Zero Gradients**: `optimizer.zero_grad()` to clear old gradients.
+        4.  **Backward Pass**: `loss.backward()` computes gradients via backpropagation.
+        5.  **Step**: `optimizer.step()` updates model weights.
 
 ---
 
