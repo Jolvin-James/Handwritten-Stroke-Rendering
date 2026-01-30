@@ -1,3 +1,4 @@
+# ml/evaluate.py
 import os
 import json
 import numpy as np
@@ -18,34 +19,50 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ---------------- BÉZIER SMOOTHING ----------------
-def bezier_smooth(points, samples_per_segment=8):
+# ---------------- ADAPTIVE BÉZIER SMOOTHING ----------------
+def bezier_smooth(points, min_samples=4, max_samples=12):
     """
-    Applies piecewise cubic Bézier smoothing to a stroke.
+    Applies velocity-adaptive cubic Bézier smoothing.
+
+    Sampling density increases in high-motion regions to avoid over-smoothing
+    and decreases in stable regions to avoid unnecessary regularization.
 
     Args:
-        points (np.ndarray): Shape (N, 2), raw stroke points
-        samples_per_segment (int): Points sampled per Bézier segment
+        points (np.ndarray): Shape (N, 2)
+        min_samples (int): Minimum samples per Bézier segment
+        max_samples (int): Maximum samples per Bézier segment
 
     Returns:
         np.ndarray: Smoothed stroke with same length as input
     """
     n = len(points)
 
-    # Too short to smooth
     if n < 4:
         return points.copy()
 
+    # Compute velocity magnitude
+    diffs = np.diff(points, axis=0)
+    speed = np.linalg.norm(diffs, axis=1)
+    speed = np.concatenate([[speed[0]], speed])
+
+    # Normalize speed
+    speed_norm = speed / (speed.max() + 1e-6)
+
     smoothed = []
 
-    # Process stroke in overlapping windows
     for i in range(0, n - 3, 3):
         p0 = points[i]
         p1 = points[i + 1]
         p2 = points[i + 2]
         p3 = points[i + 3]
 
-        t_vals = np.linspace(0, 1, samples_per_segment, endpoint=False)
+        # Adaptive sampling based on local speed
+        local_speed = np.mean(speed_norm[i:i + 4])
+        samples = int(
+            min_samples + (max_samples - min_samples) * local_speed
+        )
+
+        t_vals = np.linspace(0, 1, samples, endpoint=False)
 
         for t in t_vals:
             b = (
@@ -57,14 +74,12 @@ def bezier_smooth(points, samples_per_segment=8):
             smoothed.append(b)
 
     smoothed.append(points[-1])
-
     smoothed = np.array(smoothed)
 
-    # Resample to match original stroke length
+    # Resample to original length
     if len(smoothed) != n:
         indices = np.linspace(0, len(smoothed) - 1, n)
         resampled = np.zeros((n, 2))
-
         for d in range(2):
             resampled[:, d] = np.interp(
                 indices,
@@ -74,6 +89,27 @@ def bezier_smooth(points, samples_per_segment=8):
         return resampled
 
     return smoothed
+
+
+# ---------------- STROKE CONTINUITY ----------------
+def compute_continuity(stroke_xy):
+    """
+    Measures stroke smoothness using point-to-point distance consistency.
+    Lower value => smoother, more continuous stroke.
+
+    Args:
+        stroke_xy (np.ndarray): Shape (N, 2)
+
+    Returns:
+        float: continuity score (std of distances)
+    """
+    if len(stroke_xy) < 2:
+        return 0.0
+
+    diffs = np.diff(stroke_xy, axis=0)
+    distances = np.linalg.norm(diffs, axis=1)
+
+    return np.std(distances)
 
 
 # ---------------- ERROR METRICS ----------------
@@ -116,6 +152,11 @@ for idx in range(len(dataset)):
     # Bézier smoothing
     bezier_xy = bezier_smooth(raw_xy)
 
+    # Stroke continuity (lower is smoother)
+    cont_raw = compute_continuity(raw_xy)
+    cont_bez = compute_continuity(bezier_xy)
+    cont_ml = compute_continuity(pred_ml)
+
     # Metrics
     mse_raw, mae_raw = compute_metrics(raw_xy, clean_np)
     mse_bez, mae_bez = compute_metrics(bezier_xy, clean_np)
@@ -128,7 +169,10 @@ for idx in range(len(dataset)):
         "mse_bezier": mse_bez,
         "mae_bezier": mae_bez,
         "mse_ml": mse_ml,
-        "mae_ml": mae_ml
+        "mae_ml": mae_ml,
+        "cont_raw": cont_raw,
+        "cont_bezier": cont_bez,
+        "cont_ml": cont_ml
     })
 
     # ---------------- PLOT ----------------
