@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import pandas as pd
+import time
 
 from dataset import StrokeDataset
 from model import StrokeLSTM
@@ -16,6 +17,8 @@ MODEL_PATH = "stroke_lstm.pth"
 OUTPUT_DIR = "evaluation_outputs"
 MAX_SEQ_LEN = 128
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+inference_times = []
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -142,9 +145,11 @@ for idx in range(len(dataset)):
     noisy = noisy.unsqueeze(0).to(DEVICE)
     clean_np = clean.numpy()
 
-    # ML prediction
+    # ML prediction with latency measurement
+    start_time = time.time()
     with torch.no_grad():
         pred_ml = model(noisy).squeeze(0).cpu().numpy()
+    inference_times.append(time.time() - start_time)
 
     # Raw stroke (noisy x,y only)
     raw_xy = noisy.squeeze(0).cpu().numpy()[:, :2]
@@ -194,5 +199,52 @@ for idx in range(len(dataset)):
 df = pd.DataFrame(results)
 df.to_csv(os.path.join(OUTPUT_DIR, "evaluation_metrics.csv"), index=False)
 
+# ---------------- AGGREGATE VISUALIZATIONS ----------------
+# Average Error Comparison
+avg_errors = df[[
+    "mse_raw", "mse_bezier", "mse_ml"
+]].mean()
+
+plt.figure(figsize=(6, 4))
+avg_errors.plot(kind="bar")
+plt.ylabel("MSE")
+plt.title("Average MSE Comparison")
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, "avg_mse_comparison.png"))
+plt.close()
+
+# Average MAE Comparison
+avg_mae = df[[
+    "mae_raw", "mae_bezier", "mae_ml"
+]].mean()
+
+plt.figure(figsize=(6, 4))
+avg_mae.plot(kind="bar")
+plt.ylabel("MAE")
+plt.title("Average MAE Comparison")
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, "avg_mae_comparison.png"))
+plt.close()
+
+# Average Continuity Comparison
+avg_cont = df[[
+    "cont_raw", "cont_bezier", "cont_ml"
+]].mean()
+
+plt.figure(figsize=(6, 4))
+avg_cont.plot(kind="bar")
+plt.ylabel("Continuity Score (Lower is Smoother)")
+plt.title("Average Stroke Continuity Comparison")
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, "avg_continuity_comparison.png"))
+plt.close()
+
 print("Evaluation complete.")
 print(df.mean())
+
+# ---------------- INFERENCE LATENCY ----------------
+avg_latency = np.mean(inference_times)
+std_latency = np.std(inference_times)
+
+print(f"Average inference latency per stroke: {avg_latency * 1000:.3f} ms")
+print(f"Latency standard deviation: {std_latency * 1000:.3f} ms")
