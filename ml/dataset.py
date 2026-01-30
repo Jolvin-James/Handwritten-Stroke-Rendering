@@ -68,15 +68,25 @@ class StrokeDataset(Dataset):
         Adds Gaussian noise to x and y coordinates to simulate hand jitter.
         """
         noisy = stroke_array.copy()
-        
-        # Create noise for X and Y channels (indices 0 and 1)
-        noise = np.random.normal(0, self.noise_level, size=(self.max_seq_len, 2))
-        
-        # Add noise to normalized coordinates
-        noisy[:, :2] += noise
-        
-        return noisy
+    
+        # 1. Random Rotation (±15 degrees)
+        theta = np.radians(np.random.uniform(-15, 15))
+        c, s = np.cos(theta), np.sin(theta)
+        rotation_matrix = np.array([[c, -s], [s, c]])
+    
+        # Rotate (x, y) coordinates
+        noisy[:, :2] = np.dot(noisy[:, :2], rotation_matrix)
 
+        # 2. Random Scaling (±20%)
+        scale_factor = np.random.uniform(0.8, 1.2)
+        noisy[:, :2] *= scale_factor
+    
+        # 3. Add existing Gaussian Jitter
+        noise = np.random.normal(0, self.noise_level, size=(stroke_array.shape[0], 2))
+        noisy[:, :2] += noise
+    
+        return noisy
+    
     def _process_stroke(self, points):
         x = np.array([p["x"] for p in points], dtype=np.float32)
         y = np.array([p["y"] for p in points], dtype=np.float32)
@@ -112,7 +122,8 @@ class StrokeDataset(Dataset):
         # Derived Features 
         dt = np.zeros_like(t)
         dt[1:] = t[1:] - t[:-1]
-        dt_norm = dt / (dt.max() + 1e-6)
+        dt_max = dt.max()
+        dt_norm = dt / (dt_max + 1e-6) if dt_max > 0 else dt
 
         # Standardize pressure
         p_mean = p.mean()
