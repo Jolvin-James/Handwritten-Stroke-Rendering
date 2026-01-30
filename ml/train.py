@@ -1,3 +1,4 @@
+# ml/train.py
 import os
 import torch
 import torch.nn as nn
@@ -8,8 +9,8 @@ from model import StrokeLSTM
 
 # Config
 DATA_DIR = "../data/raw"
-BATCH_SIZE = 16
-EPOCHS = 50   # anywhere between 30–50
+BATCH_SIZE = 12
+EPOCHS = 40
 LEARNING_RATE = 1e-3
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
