@@ -78,6 +78,13 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
     *   *Reference*: `_load_data` in `ml/dataset.py`.
     *   *Answer*: The loader iterates through all JSON files in the directory and extracts **every** valid stroke (not just the first one). These are flattened into a single training list.
 
+*   **Q: Where does the data come from?**
+    *   *Reference*: `ml/synthetic_generator.py`.
+    *   *Answer*: Instead of manually collecting thousands of strokes, we use a **Synthetic Data Generator**.
+        *   It systematically creates varying shapes (lines, circles, sines, spirals, bezier curves).
+        *   It simulates human-like artifacts: vary speed based on curvature (slows down on turns) and pressure (harder on curves).
+        *   This generates ~1200 files of diverse "clean" strokes used as ground truth.
+
 *   **Q: What features do you extract from each point?**
     *   *Reference*: `_process_stroke` method in `ml/dataset.py`.
     *   *Answer*: We extract 5 features per point: `[x, y, dt_norm, p_norm, speed]`.
@@ -110,7 +117,10 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
     *   *Reference*: `StrokeDataset.__getitem__` and `_add_synthetic_noise`.
     *   *Answer*: We generate synthetic training pairs on-the-fly.
         *   **Target (Clean)**: The original stroke drawn by the user (assumed to be relatively smooth/intended path).
-        *   **Input (Noisy)**: We add Gaussian noise to the coordinate channels of the Clean stroke.
+        *   **Input (Noisy)**: We apply extensive augmentation to the Clean stroke:
+            1.  **Random Rotation**: $\pm 15^\circ$ rotation to make the model rotation-invariant.
+            2.  **Random Scaling**: $\pm 20\%$ scaling to handle different stroke sizes.
+            3.  **Gaussian Noise**: Adding jitter to the coordinate channels.
         *   **Task**: The model learns the mapping $f(Noisy) \rightarrow Clean$.
 
 ### 4. Model Architecture
@@ -140,8 +150,8 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
 
 *   **Q: What are your hyperparameters?**
     *   *Answer*:
-        *   **Batch Size**: 16 (Small enough for stability, large enough for some parallelization).
-        *   **Epochs**: 50 (Sufficient for convergence on this dataset size).
+        *   **Batch Size**: 12 (Small enough for stability, large enough for some parallelization).
+        *   **Epochs**: 40 (Sufficient for convergence on this dataset size).
         *   **Sequence Length**: 128 (Fixed length for all strokes via interpolation).
 
 *   **Q: Describe one training step.**

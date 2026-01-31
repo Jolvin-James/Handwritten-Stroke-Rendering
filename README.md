@@ -20,6 +20,7 @@ This project focuses on collecting and processing handwritten stroke data for ma
   - Coordinate normalization (preserving aspect ratio).
   - Velocity and pressure normalization.
   - Derived features: Delta time (`dt`) and Speed.
+- **Synthetic Data Generator**: Generates diverse training samples (`ml/synthetic_generator.py`) including lines, circles, and spirals.
 - **Synthetic Noise**: Built-in augmentation to add Gaussian noise to strokes, enabling training of denoising models.
 - **Stroke Smoothing Model**: An LSTM-based regression model (`ml/model.py`) designed to smooth and denoise handwritten strokes.
 
@@ -33,6 +34,7 @@ This project focuses on collecting and processing handwritten stroke data for ma
 │   └── canvas.js       # Drawing logic & data capture
 ├── ml/                 # Machine Learning pipeline
 │   ├── dataset.py      # PyTorch Dataset implementation
+│   ├── synthetic_generator.py # Synthetic data generation
 │   ├── model.py        # LSTM Model architecture
 │   ├── train.py        # Training script
 │   └── test_dataset.py # Verification script
@@ -55,7 +57,13 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-### 3. Using the Dataset
+### 3. Generate Training Data
+Generate the synthetic dataset required for training:
+```bash
+python -m ml.synthetic_generator
+```
+
+### 4. Using the Dataset
 You can load and inspect the dataset using the provided scripts.
 
 **Testing the Pipeline:**
@@ -76,7 +84,7 @@ input_stroke, target_stroke = dataset[0]
 print(input_stroke.shape)  # Expected: (128, 5) -> [x, y, dt, p, v]
 ```
 
-### 4. Using the Model
+### 5. Using the Model
 You can instantiate the LSTM model for training or inference:
 
 ```python
@@ -94,7 +102,7 @@ output = model(dummy_input)
 print(output.shape) # Expected: (1, 128, 2) -> [x, y]
 ```
 
-### 5. Training the Model
+### 6. Training the Model
 To train the LSTM model on your collected data:
 
 1. Ensure your JSON data files are in `data/raw/` (or configure `DATA_DIR` in `ml/train.py`).
@@ -105,8 +113,8 @@ python -m ml.train
 ```
 
 **Training Details:**
-- **Epochs**: 50
-- **Batch Size**: 16
+- **Epochs**: 40
+- **Batch Size**: 12
 - **Device**: CUDA (if available) else CPU
 - **Output**: The best model weights are saved to `stroke_lstm.pth`.
 
