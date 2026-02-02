@@ -19,11 +19,58 @@ let currentStroke = [];
 let strokeStartTime = 0;
 let lastPoint = null;
 
+const renderedStrokes = [];
+
+// ML RENDER HELPERS 
+function denormalizePoints(mlPoints, meta) {
+    const { min_x, min_y, scale, center_x, center_y } = meta;
+
+    return mlPoints.map(p => ({
+        x: (p[0] + center_x) * scale + min_x,
+        y: (p[1] + center_y) * scale + min_y
+    }));
+}
+
+function drawStroke(points) {
+    if (points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = lineWidth * 0.9;
+
+    ctx.moveTo(
+        points[0].x * canvas.width,
+        points[0].y * canvas.height
+    );
+
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(
+            points[i].x * canvas.width,
+            points[i].y * canvas.height
+        );
+    }
+
+    ctx.stroke();
+}
+
+async function runMLInference(strokePoints) {
+    const response = await fetch("http://localhost:5000/smooth-stroke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: strokePoints })
+    });
+
+    return await response.json();
+}
+
+
 // Toolbar actions
 toolbar.addEventListener("click", (e) => {
     if (e.target.id === "clear") {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         strokes.length = 0;
+        renderedStrokes.length = 0;
     }
 
     if (e.target.id === "export") {
@@ -81,7 +128,7 @@ canvas.addEventListener("pointerdown", (e) => {
         x: x / canvas.width,
         y: y / canvas.height,
         t: 0,
-        p: e.pressure || 0.5
+        p: e.pressure > 0 ? e.pressure : 1.0
     };
 
     currentStroke.push(point);
@@ -118,7 +165,7 @@ canvas.addEventListener("pointermove", (e) => {
         x: nx,
         y: ny,
         t: t,
-        p: e.pressure || 0.5
+        p: e.pressure > 0 ? e.pressure : 1.0
     };
 
     currentStroke.push(point);
@@ -126,16 +173,50 @@ canvas.addEventListener("pointermove", (e) => {
 });
 
 // Pointer up
-canvas.addEventListener("pointerup", () => {
+canvas.addEventListener("pointerup", async () => {
     isPainting = false;
     ctx.stroke();
     ctx.beginPath();
 
-    if (currentStroke.length > 1) {
-        strokes.push({
-            stroke_id: strokes.length + 1,
-            points: currentStroke
+    if (currentStroke.length < 2) {
+        currentStroke = [];
+        lastPoint = null;
+        return;
+    }
+
+    const rawStroke = {
+        stroke_id: strokes.length + 1,
+        points: currentStroke
+    };
+    strokes.push(rawStroke);
+
+    try {
+        const result = await runMLInference(currentStroke);
+        if (!result.points || !Array.isArray(result.points)) {
+            throw new Error("Invalid ML response");
+        }
+        const smoothPoints = denormalizePoints(result.points, result.meta);
+
+        renderedStrokes.push(smoothPoints);
+        rawStroke.smoothed = smoothPoints;
+
+        // Redraw everything cleanly
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        renderedStrokes.forEach(stroke => {
+            drawStroke(stroke);
         });
+
+        // Optional overlay for demo
+        /*
+        ctx.setLineDash([4, 4]);
+        drawStroke(currentStroke);
+        ctx.setLineDash([]);
+        */
+
+    } catch (err) {
+        console.error("ML inference failed:", err);
+        drawStroke(currentStroke);
     }
 
     currentStroke = [];
@@ -146,4 +227,19 @@ canvas.addEventListener("pointerup", () => {
 canvas.addEventListener("pointerleave", () => {
     isPainting = false;
     ctx.beginPath();
+});
+
+canvas.addEventListener("pointercancel", () => {
+    isPainting = false;
+    ctx.beginPath();
+    currentStroke = [];
+    lastPoint = null;
+});
+
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth - canvasOffsetX;
+    canvas.height = window.innerHeight - canvasOffsetY;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    renderedStrokes.forEach(stroke => drawStroke(stroke));
 });
