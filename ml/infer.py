@@ -33,7 +33,7 @@ def smooth_stroke(points):
     if len(points) < 3:
         return [[p["x"], p["y"]] for p in points]
 
-    features = _preprocessor._process_stroke(points)
+    features, meta = _preprocessor._process_stroke(points, return_meta=True)
 
     if features is None:
         return [[p["x"], p["y"]] for p in points]
@@ -44,4 +44,7 @@ def smooth_stroke(points):
     with torch.no_grad():
         pred = model(x).squeeze(0).cpu().numpy()  # (seq_len, 2)
 
-    return pred.tolist()
+    return {
+        "points": pred.tolist(),
+        "meta": meta
+    }

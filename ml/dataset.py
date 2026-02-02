@@ -87,7 +87,7 @@ class StrokeDataset(Dataset):
     
         return noisy
     
-    def _process_stroke(self, points):
+    def _process_stroke(self, points, return_meta=False):
         x = np.array([p["x"] for p in points], dtype=np.float32)
         y = np.array([p["y"] for p in points], dtype=np.float32)
         t = np.array([p["t"] for p in points], dtype=np.float32)
@@ -119,6 +119,14 @@ class StrokeDataset(Dataset):
         x_centered = x_norm - cx
         y_centered = y_norm - cy
 
+        meta = {
+            "min_x": float(min_x),
+            "min_y": float(min_y),
+            "scale": float(scale),
+            "center_x": float(cx),
+            "center_y": float(cy)
+        }
+
         # Derived Features 
         dt = np.zeros_like(t)
         dt[1:] = t[1:] - t[:-1]
@@ -142,7 +150,10 @@ class StrokeDataset(Dataset):
         features = np.stack([x_centered, y_centered, dt_norm, p_norm, speed], axis=1)
 
         # Resample 
-        return self._resample(features, self.max_seq_len)
+        resampled = self._resample(features, self.max_seq_len)
+        if return_meta:
+            return resampled, meta
+        return resampled
 
     def _resample(self, sequence, target_len):
         seq_len = len(sequence)
