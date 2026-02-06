@@ -164,11 +164,46 @@ These questions relate to `ml/dataset.py` and the data pipeline you have built.
 
 ---
 
-## Part 3: Soft Skills / Behavioral
+## Part 3: Real-Time Inference (Backend Integration)
+
+These questions relate to `ml/app.py`, `ml/infer.py`, and the connection between frontend and backend.
+
+### 1. Model Deployment & API
+**Context**: You are now serving the model via a web server to interact with the frontend.
+
+*   **Q: How did you expose the model to the frontend?**
+    *   *Reference*: `ml/app.py`.
+    *   *Answer*: I built a lightweight **Flask API**.
+        *   It exposes a single endpoint: `POST /smooth-stroke`.
+        *   The frontend sends the raw stroke points as JSON.
+        *   The backend processes the data, runs the model, and returns the smoothed coordinates.
+
+*   **Q: How do you ensure low-latency inference?**
+    *   *Reference*: `ml/export_model.py` and `ml/infer.py`.
+    *   *Answer*:
+        1.  **TorchScript**: We export the trained PyTorch model to **TorchScript** (`torch.jit.trace`). This serializes the model structure and weights, allowing it to be run in a C++ runtime often faster than standard PyTorch eager mode.
+        2.  **Pre-loading**: The model is loaded into memory *once* when the Flask app starts (`apps.py`), not on every request.
+        3.  **No Gradients**: We use `torch.no_grad()` to disable gradient calculation, which reduces memory usage and speeds up computation.
+
+*   **Q: Describe the full data flow for a single stroke.**
+    *   *Answer*:
+        1.  **User draws**: Frontend captures `pointermove` events.
+        2.  **Stroke Finish**: On `pointerup`, JavaScript bundles the stroke data.
+        3.  **Request**: JS `fetch()` sends a POST request to `http://localhost:5000/smooth-stroke`.
+        4.  **Preprocessing**: Flask app receives data -> `DataSet` logic normalizes and resamples features (padding/interpolating to 128 points).
+        5.  **Inference**: The LSTM model predicts the smoothed (x, y) coordinates.
+        6.  **Response**: The backend sends the smoothed points back to the client.
+        7.  **Visualization**: The frontend receives the data, denormalizes it (maps back to screen coordinates), and redraws the smooth stroke on top of the original.
+
+---
+
+## Part 4: Soft Skills / Behavioral
 
 *   **Q: What was the most challenging part of this project?**
     *   *Suggested Answer*: "Ensuring the data pipeline was robust. For example, handling strokes with different point counts and correctly normalizing them without distorting the aspect ratio."
+    *   *Alternative Answer*: "Connecting the asynchronous frontend (JavaScript) with the synchronous ML backend (Python). ensuring the coordinate systems matched perfectly (normalization on server vs denormalization on client) was tricky."
+
 *   **Q: How would you improve this app?**
-    *   *Idea 1*: **Train the Model**: Now that the dataset pipeline is ready, I would design a Transformer or LSTM-based Autoencoder to actually interpret the data.
-    *   *Idea 2*: **Real-time Inference**: Connect the Python backend to the frontend via WebSockets or a REST API to smooth strokes in real-time as the user draws.
-    *   *Idea 3*: **Multi-stroke support**: Currently, the ML pipeline processes individual strokes. Extending it to handle full characters (multiple strokes) would be the next logic step.
+    *   *Idea 1*: **WebAssembly (WASM)**: compiling the PyTorch model (or using ONNX Runtime) to WebAssembly to run inference directly in the browser. This would remove the network latency and the need for a Python backend.
+    *   *Idea 2*: **Stroke Classification**: Extending the model to not just *smooth* the stroke, but *recognize* it (e.g., classify it as a letter 'A', 'B', etc.).
+    *   *Idea 3*: **Multi-stroke support**: Currently, the ML pipeline processes individual strokes. Extending it to handle full characters (composed of multiple strokes) would be the next logical step.
