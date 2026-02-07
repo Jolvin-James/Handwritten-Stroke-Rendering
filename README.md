@@ -1,4 +1,4 @@
-# 🖊️ Handwritten Stroke Recognition & Smoothing
+# Handwritten Stroke Recognition & Smoothing
 
 > A full-stack machine learning application for capturing, processing, and smoothing handwritten strokes in real-time using LSTM neural networks.
 
@@ -290,17 +290,6 @@ StrokeLSTM(
   }
 }
 ```
-
----
-
-## Additional Resources
-
-- **[PREP.md](PREP.md)**: Comprehensive interview preparation guide covering:
-  - HTML5 Canvas API
-  - JavaScript event handling
-  - Feature engineering techniques
-  - LSTM architecture details
-  - Training pipeline walkthrough
 
 ---
 
